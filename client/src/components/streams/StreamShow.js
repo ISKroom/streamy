@@ -1,11 +1,50 @@
 import React from 'react';
+import flv from 'flv.js';
 import { connect } from 'react-redux';
 import { fetchStream } from '../../actions';
 
 class StreamShow extends React.Component {
 
+  // jsxではなく実際の html を参照したい場合は ref を使用する
+  // ref を使用したい場合は コンストラクタ内で ref を定義する必要がある
+  // コンストラクタを使用する場合は super(props) を実行する必要がある
+  constructor(props){
+    super(props);
+    this.videoRef = React.createRef();
+  }
+
   componentDidMount(){
-    this.props.fetchStream(this.props.match.params.id);
+    const { id } = this.props.match.params;
+
+    this.props.fetchStream(id);
+    this.bulidPlayer();
+  }
+
+  // もし componentDidMount でちゃんとストリームがフェッチされてない場合はフェッチが完了したらストリームを再ビルド
+  // また、コンポーネントが更新される度に念のためストリームを再ビルド
+  componentDidUpdate(){
+    this.bulidPlayer();
+  }
+
+  bulidPlayer(){
+    // すでにビデオをビルドしている or ストリームのフェッチが未完了の場合は何もしない
+    if (this.player || !this.props.stream) {
+      return;
+    }
+
+    const { id } = this.props.match.params;
+    this.player = flv.createPlayer({
+      type: 'flv',
+      url: `http://localhost:8000/live/${id}.flv`
+    });
+    this.player.attachMediaElement(this.videoRef.current);
+    this.player.load();
+  }
+
+  // コンポーネントのアンマウント時にビデオのダウンロードを終了しないと
+  // ページを移動してもダウンロードが続いてしまうので注意！
+  componentWillUnmount() {
+    this.player.destroy();
   }
 
   render(){
@@ -17,6 +56,7 @@ class StreamShow extends React.Component {
 
     return (
       <div>
+        <video ref={this.videoRef} style={{ width: '100%'}} controls />
         <h1>{title}</h1>
         <h5>{description}</h5>
       </div>
